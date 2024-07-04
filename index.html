@@ -233,6 +233,25 @@
         #backToTop:hover {
             opacity: 0.8;
         }
+      .media-embed {
+    margin-top: 20px;
+    padding: 15px;
+    background-color: var(--card-bg);
+    border-radius: 8px;
+    box-shadow: var(--card-shadow);
+}
+
+.media-embed h3 {
+    margin-top: 0;
+}
+
+#mediaContainer {
+    margin-top: 15px;
+}
+
+#mediaContainer iframe {
+    max-width: 100%;
+}
     </style>
 </head>
 <body>
@@ -266,7 +285,13 @@
                 </div>
             </div>
         </div>
-
+<!--media-->
+      <div class="media-embed">
+    <h3>Meditation Media</h3>
+    <input type="text" id="mediaUrl" placeholder="Enter YouTube or SoundCloud URL" aria-label="Media URL">
+    <button id="embedMedia" aria-label="Embed Media">Embed Media</button>
+    <div id="mediaContainer"></div>
+</div>
         <div id="sessionHistory" class="card" style="display: none;">
             <h2>Session History</h2>
             <div id="historyControls">
@@ -502,18 +527,21 @@
                 }, 1000);
             }
 
-            stopTimer() {
-                if (this.timerInterval) {
-                    clearInterval(this.timerInterval);
-                }
-                this.setState({ timerRunning: false });
-                this.addSession({
-                    date: new Date(),
-                    duration: Math.min(this.state.timerSeconds, SESSION_DURATION),
-                    notes: ''
-                });
-                this.setState({ timerSeconds: 0 });
-            }
+ stopTimer() {
+    if (this.timerInterval) {
+        clearInterval(this.timerInterval);
+    }
+    this.setState({ 
+        timerRunning: false,
+        timerSeconds: 0  // Reset timer to 0
+    });
+    this.addSession({
+        date: new Date(),
+        duration: Math.min(this.state.timerSeconds, SESSION_DURATION),
+        notes: ''
+    });
+    // The timer display will be updated in the next render cycle
+}
 
             setUserName(name) {
                 this.setState({ userName: name });
@@ -620,10 +648,10 @@
             return text.replace(regex, '<mark>$1</mark>');
         }
 
-        function updateTimerDisplay(seconds) {
-            const timerElement = document.getElementById('timer');
-            timerElement.textContent = formatTime(seconds);
-        }
+       function updateTimerDisplay(seconds) {
+    const timerElement = document.getElementById('timer');
+    timerElement.textContent = formatTime(seconds);
+       }
 
         function updateTimerControls(timerRunning) {
             const startButton = document.getElementById('startSession');
@@ -786,7 +814,7 @@
         document.addEventListener('DOMContentLoaded', () => {
             store.loadFromLocalStorage();
             
-            document.getElementById('themeToggle').addEventListener('click', () => store.toggleTheme());
+    document.getElementById('embedMedia').addEventListener('click', handleEmbedMedia);        document.getElementById('themeToggle').addEventListener('click', () => store.toggleTheme());
             document.getElementById('giveFeedback').addEventListener('click', () => openModal('feedbackModal'));
             document.getElementById('addPastSession').addEventListener('click', () => openModal('pastSessionModal'));
             document.getElementById('createMandal').addEventListener('click', handleCreateMandal);
@@ -883,6 +911,7 @@
                 updateDashboard(state);
                 displaySessionHistory(state);
                 updateTimerControls(state.timerRunning);
+              updateTimerDisplay(state.timerSeconds);
             }
         });
 
@@ -912,6 +941,63 @@
                     });
             });
         }
+      function handleEmbedMedia() {
+    const mediaUrl = document.getElementById('mediaUrl').value.trim();
+    const mediaContainer = document.getElementById('mediaContainer');
+    
+    if (!mediaUrl) {
+        showToast('Please enter a valid URL.');
+        return;
+    }
+
+    try {
+        const url = new URL(mediaUrl);
+        
+        if (url.hostname.includes('youtube.com') || url.hostname.includes('youtu.be')) {
+            const videoId = extractYouTubeId(mediaUrl);
+            if (videoId) {
+                const embedUrl = `https://www.youtube-nocookie.com/embed/${videoId}`;
+                mediaContainer.innerHTML = `
+                    <iframe 
+                        width="560" 
+                        height="315" 
+                        src="${embedUrl}" 
+                        frameborder="0" 
+                        allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture" 
+                        allowfullscreen
+                        title="YouTube video player">
+                    </iframe>`;
+                showToast('YouTube video embedded successfully.');
+            } else {
+                showToast('Invalid YouTube URL. Please check and try again.');
+            }
+        } else if (url.hostname.includes('soundcloud.com')) {
+            const embedUrl = `https://w.soundcloud.com/player/?url=${encodeURIComponent(mediaUrl)}`;
+            mediaContainer.innerHTML = `
+                <iframe 
+                    width="100%" 
+                    height="166" 
+                    scrolling="no" 
+                    frameborder="no" 
+                    allow="autoplay" 
+                    src="${embedUrl}"
+                    title="SoundCloud audio player">
+                </iframe>`;
+            showToast('SoundCloud track embedded successfully.');
+        } else {
+            showToast('Unsupported media URL. Please enter a YouTube or SoundCloud URL.');
+        }
+    } catch (error) {
+        console.error('Error embedding media:', error);
+        showToast('Invalid URL. Please enter a valid YouTube or SoundCloud URL.');
+    }
+}
+
+function extractYouTubeId(url) {
+    const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=)([^#\&\?]*).*/;
+    const match = url.match(regExp);
+    return (match && match[2].length === 11) ? match[2] : null;
+}
     </script>
 </body>
 </html>
